@@ -13,6 +13,7 @@ Usage
 -----
 A simple example:
 ::
+
 	import numpy as np
 	import mr_forecast as mr
 	
