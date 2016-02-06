@@ -8,6 +8,9 @@ mearth2msun = 333060.4
 rearth2rjup = 11.21
 rearth2rsun = 109.2
 
+mlower = 3e-4
+mupper = 3e5
+
 ## hyper file
 hyper_file = 'h4_thin_hyper.dat'
 
@@ -28,8 +31,6 @@ def split_hyper_linear(hyper):
 	c = np.zeros_like(slope)
 	c[0] = c0
 	for i in range(1,n_pop):
-		# trans[0] * slope[0] + c[0] = trans[0] * slope[1] + c[1]
-		# c[1] = c[0] + trans[0] * (slope[0]-slope[1])
 		c[i] = c[i-1] + trans[i-1]*(slope[i-1]-slope[i])
 
 	return c, slope, sigma, trans
@@ -46,44 +47,23 @@ def piece_linear(hyper, M, prob_R):
 	return R
 
 ### given mass distribution, yield radius distribution
-def Mpost2R(mass, unit='earth', size = -1):
-
-	## check input
-	# mass type
-	if type(mass) != np.ndarray or np.ndim(mass) != 1:
-		print 'Error: input mass must be 1D numpy array. '
-		return None
-
+def Mpost2R(mass, unit='Earth'):
 	# unit
-	if unit == 'earth':
+	if unit == 'Earth':
 		pass
-	elif unit == 'jupiter':
+	elif unit == 'Jupiter':
 		mass = mass * mearth2mjup
-	elif unit == 'sun':
-		mass = mass * mearth2msun
 	else:
-		print 'Error: input unit must be earth/jupiter/sun. '
-		return None
+		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# mass range
-	if np.min(mass) < 1e-4 or np.max(mass) > 1e6:
-		print 'Error: mass range out of model expectation. '
+	if np.min(mass) < 3e-4 or np.max(mass) > 3e5:
+		print 'Error: mass range out of model expectation. Returning None.'
 		return None
-
-	# size
-	if size == -1:
-		sample_size = len(mass)
-		mass_sample = mass
-	elif size > 1:
-		sample_size = int(size)
-		mass_sample = np.random.choice(mass, size=sample_size, replace=True)
-	else:
-		print 'Error: size should be a positive integer. Default is the size of the input array.'
-		return None
-
 
 	## convert to radius
-	logm = np.log10(mass_sample)
+	sample_size = len(mass)
+	logm = np.log10(mass)
 	prob = np.random.random(sample_size)
 	logr = np.ones_like(logm)
 	
@@ -97,26 +77,34 @@ def Mpost2R(mass, unit='earth', size = -1):
 	radius_sample = 10.** logr
 
 	## convert to right unit
-	if unit == 'earth':
-		radius = radius_sample
-	elif unit == 'jupiter':
+	if unit == 'Jupiter':
 		radius = radius_sample / rearth2rjup
-	elif unit == 'sun':
-		radius = radius_sample / rearth2rsun
 	else:
-		print 'Error: input unit must be earth/jupiter/sun. '
-		return None
-	
+		radius = radius_sample 
+
 	return radius
 
-### given mass statistics, yield radius distribution
-# make it a gaussian if symmetric,
-# or two different gaussian joint at the median if asymmetric
-def Mstat2R(mean, std, down_std=-1, unit='earth', sample_size=100):
+
+### given mass statistics, yield radius stats, assuming Normal Distribution
+def Mstat2R(mean, std, unit='Earth', sample_size=100):	
+	# unit
+	if unit == 'Earth':
+		pass
+	elif unit == 'Jupiter':
+		mean = mean * mearth2mjup
+		std = std * mearth2mjup
+	else:
+		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
+
+	# draw samples
 	print 'Assuming normal distribution truncated at the mass range limit of the model.'
-	mass = truncnorm.rvs(1e-4, 1e6, loc=mean, scale=std, size=sample_size)		
-	radius = Mpost2R(mass, unit='earth', size = -1)
-	return radius
+	mass = truncnorm.rvs( (mlower-mean)/std, (mupper-mean)/std, loc=mean, scale=std, size=sample_size)		
+	radius = Mpost2R(mass, unit='Earth')
+
+	if unit == 'Jupiter':
+		radius = radius / rearth2rjup
+
+	return np.mean(radius), np.std(radius)
 
 
 ### p(radii|M)
@@ -136,55 +124,35 @@ def ProbRGivenM(radii, M, hyper):
 	return prob
 
 ### given radius posterior, yield mass
-def Rpost2M(radius, unit='earth', size=-1, grid_size = 1e3):
-	
-	## check input
-	# radius type
-	if type(radius) != np.ndarray or np.ndim(radius) != 1:
-		print 'Error: input radius must be 1D numpy array. '
-		return None
-
+def Rpost2M(radius, unit='Earth', grid_size = 1e3):
 	# unit
-	if unit == 'earth':
+	if unit == 'Earth':
 		pass
-	elif unit == 'jupiter':
+	elif unit == 'Jupiter':
 		radius = radius * rearth2rjup
-	elif unit == 'sun':
-		radius = radius * rearth2rsun
 	else:
-		print 'Error: input unit must be earth/jupiter/sun. '
-		return None
+		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# mass range
 	if np.min(radius) <= 0.:
-		print 'Error: radius range out of model expectation. '
-		return None
-
-	# size
-	if size == -1:
-		sample_size = len(radius)
-		radius_sample = radius
-	elif size > 1:
-		sample_size = int(size)
-		radius_sample = np.random.choice(radius, size=sample_size, replace=True)
-	else:
-		print 'Error: size should be a positive integer. Default is the size of the input array.'
+		print 'Error: there cannot be negative radius. Returning None.'
 		return None
 
 	# sample_grid
-	if grid_size < 5:
-		print 'Error: the sample grid is too sparse. Suggest using at least 100 sample grid.'
-		return None
+	if grid_size < 10:
+		print 'Warning: the sample grid is too sparse. Using 10 sample grid instead.'
+		grid_size = 10
 
 	## convert to mass
-	logr = np.log10(radius_sample)
+	sample_size = len(radius)
+	logr = np.log10(radius)
 	logm = np.ones_like(logr)
 
 	all_hyper = np.loadtxt(hyper_file)
 	hyper_ind = np.random.randint(low = 0, high = np.shape(all_hyper)[0], size = sample_size)	
 	hyper = all_hyper[hyper_ind,:]
 
-	logm_grid = np.linspace(-4., 5.5, grid_size)
+	logm_grid = np.linspace(-3.522, 5.477, grid_size)
 
 	for i in range(sample_size):
 		prob = ProbRGivenM(logr[i], logm_grid, hyper[i,:])
@@ -193,22 +161,34 @@ def Rpost2M(radius, unit='earth', size=-1, grid_size = 1e3):
 	mass_sample = 10.** logm
 
 	## convert to right unit
-	if unit == 'earth':
-		mass = mass_sample
-	elif unit == 'jupiter':
+	if unit == 'Jupiter':
 		mass = mass_sample / mearth2mjup
-	elif unit == 'sun':
-		mass = mass_sample / mearth2msun
 	else:
-		print 'Error: input unit must be earth/jupiter/sun. '
-		return None
+		mass = mass_sample
 	
 	return mass
 
-### given R statistics, yield mass distribution
-def Rstat2M(mean, std, unit='earth', sample_size=100):
-	print 'Assuming normal distribution truncated from zero to infinity'
-	radius = truncnorm.rvs(0., np.inf, loc=mean, scale=std, size=sample_size)		
-	mass = Rpost2M(radius, unit='earth', size = -1)
-	return mass
+### given R statistics, yield mass stat
+def Rstat2M(mean, std, unit='Earth', sample_size=100):	
+	# unit
+	if unit == 'Earth':
+		pass
+	elif unit == 'Jupiter':
+		mean = mean * rearth2rjup
+		std = std * rearth2rjup
+	else:
+		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
+
+	# draw samples
+	print 'Assuming normal distribution truncated from zero on.'
+	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)		
+	mass = Rpost2M(radius, unit='Earth')
+
+	if mass is None:
+		return None
+
+	if unit=='Jupiter':
+		mass = mass / mearth2mjup
+
+		return np.mean(mass), np.std(mass)
 
