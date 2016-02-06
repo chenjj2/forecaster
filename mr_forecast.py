@@ -9,7 +9,7 @@ rearth2rjup = 11.21
 rearth2rsun = 109.2
 
 ## hyper file
-hyper_file = 'h4_thin_hyper.out'
+hyper_file = 'h4_thin_hyper.dat'
 
 ### fix the number of different populations
 n_pop = 4
