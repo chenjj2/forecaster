@@ -12,7 +12,6 @@ If you use it, please cite xxx paper (link).
 Usage
 -----
 A simple example:
-::
 
 	import numpy as np
 	import mr_forecast as mr
