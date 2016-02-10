@@ -12,7 +12,8 @@ mlower = 3e-4
 mupper = 3e5
 
 ## hyper file
-hyper_file = 'h4_thin_hyper.dat'
+#hyper_file = 'h4_thin_hyper.dat'
+hyper_file = 'fitting_parameters.dat'
 
 ### fix the number of different populations
 n_pop = 4
@@ -169,7 +170,7 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3):
 	return mass
 
 ### given R statistics, yield mass stat
-def Rstat2M(mean, std, unit='Earth', sample_size=100):	
+def Rstat2M(mean, std, unit='Earth', sample_size=100, grid_size=1e3):	
 	# unit
 	if unit == 'Earth':
 		pass
@@ -182,7 +183,7 @@ def Rstat2M(mean, std, unit='Earth', sample_size=100):
 	# draw samples
 	print 'Assuming normal distribution truncated from zero on.'
 	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)		
-	mass = Rpost2M(radius, unit='Earth')
+	mass = Rpost2M(radius, 'Earth', grid_size)
 
 	if mass is None:
 		return None
