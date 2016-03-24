@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 from scipy.stats import truncnorm 
+import h5py 
 
 ## constant
 mearth2mjup = 317.828
@@ -8,58 +9,56 @@ mearth2msun = 333060.4
 rearth2rjup = 11.21
 rearth2rsun = 109.2
 
+## boundary
 mlower = 3e-4
 mupper = 3e5
 
-## hyper file
-#hyper_file = 'h4_thin_hyper.dat'
-hyper_file = 'fitting_parameters.dat'
-
-### fix the number of different populations
+## number of category
 n_pop = 4
 
-### indicate which M belongs to population i given transition parameter
-def indicate(M, trans, i):
-	ts = np.insert(np.insert(trans, n_pop-1, np.inf), 0, -np.inf)
-	ind = (M>=ts[i]) & (M<ts[i+1])
-	return ind
+## read parameter file
+hyper_file = 'fitting_parameters.h5'
+h5 = h5py.File(hyper_file, 'r')
+all_hyper = h5['hyper_posterior'][:]
+h5.close()
 
-### split hyper and derive c
-def split_hyper_linear(hyper):
-	c0, slope,sigma, trans = \
-	hyper[0], hyper[1:1+n_pop], hyper[1+n_pop:1+2*n_pop], hyper[1+2*n_pop:]
+## function
+from func import piece_linear, ProbRGivenM
 
-	c = np.zeros_like(slope)
-	c[0] = c0
-	for i in range(1,n_pop):
-		c[i] = c[i-1] + trans[i-1]*(slope[i-1]-slope[i])
+##############################################
 
-	return c, slope, sigma, trans
-
-### model: straight line
-def piece_linear(hyper, M, prob_R):
-	c, slope, sigma, trans = split_hyper_linear(hyper)
-	R = np.zeros_like(M)
-	for i in range(4):
-		ind = indicate(M, trans, i)
-		mu = c[i] + M[ind]*slope[i]
-		R[ind] = norm.ppf(prob_R[ind], mu, sigma[i])
-
-	return R
-
-### given mass distribution, yield radius distribution
 def Mpost2R(mass, unit='Earth'):
-	# unit
+	"""
+	Forecast the Radius distribution given the mass distribution.
+
+	Parameters
+	---------------
+	mass: one dimensional array
+		The mass distribution.
+	unit: string (optional)
+		Unit of the mass. Options are 'Earth' and 'Jupiter'.
+
+	Returns
+	---------------
+	radius: one dimensional array
+		Predicted radius distribution in the input unit.
+	"""
+
+	# mass input
+	mass = np.array(mass)
+	assert len(mass.shape) == 1, "Input mass must be 1-D."
+
+	# unit input
 	if unit == 'Earth':
 		pass
 	elif unit == 'Jupiter':
 		mass = mass * mearth2mjup
 	else:
-		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
+		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# mass range
 	if np.min(mass) < 3e-4 or np.max(mass) > 3e5:
-		print 'Error: mass range out of model expectation. Returning None.'
+		print 'Mass range out of model expectation. Returning None.'
 		return None
 
 	## convert to radius
@@ -67,8 +66,7 @@ def Mpost2R(mass, unit='Earth'):
 	logm = np.log10(mass)
 	prob = np.random.random(sample_size)
 	logr = np.ones_like(logm)
-	
-	all_hyper = np.loadtxt(hyper_file)
+
 	hyper_ind = np.random.randint(low = 0, high = np.shape(all_hyper)[0], size = sample_size)	
 	hyper = all_hyper[hyper_ind,:]
 
@@ -86,8 +84,30 @@ def Mpost2R(mass, unit='Earth'):
 	return radius
 
 
-### given mass statistics, yield radius stats, assuming Normal Distribution
-def Mstat2R(mean, std, unit='Earth', sample_size=100):	
+
+def Mstat2R(mean, std, unit='Earth', sample_size=1000):	
+	"""
+	Forecast the mean and standard deviation of radius given the mena and standard deviation of the mass.
+	Assuming normal distribution with the mean and standard deviation truncated at the mass range limit of the model.
+
+	Parameters
+	---------------
+	mean: float
+		Mean (average) of mass.
+	std: float
+		Standard deviation of mass.
+	unit: string (optional)
+		Unit of the mass. Options are 'Earth' and 'Jupiter'.
+	sample_size: int (optional)
+		Number of mass samples to draw with the mean and std provided.
+	Returns
+	---------------
+	mean: float
+		Predicted mean of radius in the input unit.
+	std: float
+		Predicted standard deviation of radius.
+	"""
+
 	# unit
 	if unit == 'Earth':
 		pass
@@ -95,10 +115,9 @@ def Mstat2R(mean, std, unit='Earth', sample_size=100):
 		mean = mean * mearth2mjup
 		std = std * mearth2mjup
 	else:
-		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
+		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	print 'Assuming normal distribution truncated at the mass range limit of the model.'
 	mass = truncnorm.rvs( (mlower-mean)/std, (mupper-mean)/std, loc=mean, scale=std, size=sample_size)		
 	radius = Mpost2R(mass, unit='Earth')
 
@@ -108,40 +127,43 @@ def Mstat2R(mean, std, unit='Earth', sample_size=100):
 	return np.mean(radius), np.std(radius)
 
 
-### p(radii|M)
-def ProbRGivenM(radii, M, hyper):
 
-	c, slope, sigma, trans = split_hyper_linear(hyper)
-	prob = np.zeros_like(M)
-	
-	for i in range(4):
-		ind = indicate(M, trans, i)
-		mu = c[i] + M[ind]*slope[i]
-		sig = sigma[i]
-		prob[ind] = norm.pdf(radii, mu, sig)
-
-	prob = prob/np.sum(prob)
-
-	return prob
-
-### given radius posterior, yield mass
 def Rpost2M(radius, unit='Earth', grid_size = 1e3):
+	"""
+	Forecast the mass distribution given the radius distribution.
+
+	Parameters
+	---------------
+	radius: one dimensional array
+		The radius distribution.
+	unit: string (optional)
+		Unit of the mass. Options are 'Earth' and 'Jupiter'.
+	grid_size: int (optional)
+		Number of grid in the mass axis when sampling mass from radius.
+		The more the better results, but slower process.
+
+	Returns
+	---------------
+	mass: one dimensional array
+		Predicted mass distribution in the input unit.
+	"""
+	
 	# unit
 	if unit == 'Earth':
 		pass
 	elif unit == 'Jupiter':
 		radius = radius * rearth2rjup
 	else:
-		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
+		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# mass range
 	if np.min(radius) <= 0.:
-		print 'Error: there cannot be negative radius. Returning None.'
+		print 'There cannot be negative radius. Returning None.'
 		return None
 
 	# sample_grid
 	if grid_size < 10:
-		print 'Warning: the sample grid is too sparse. Using 10 sample grid instead.'
+		print 'The sample grid is too sparse. Using 10 sample grid instead.'
 		grid_size = 10
 
 	## convert to mass
@@ -149,7 +171,6 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3):
 	logr = np.log10(radius)
 	logm = np.ones_like(logr)
 
-	all_hyper = np.loadtxt(hyper_file)
 	hyper_ind = np.random.randint(low = 0, high = np.shape(all_hyper)[0], size = sample_size)	
 	hyper = all_hyper[hyper_ind,:]
 
@@ -169,8 +190,32 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3):
 	
 	return mass
 
-### given R statistics, yield mass stat
-def Rstat2M(mean, std, unit='Earth', sample_size=100, grid_size=1e3):	
+
+
+def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3):	
+	"""
+	Forecast the mean and standard deviation of mass given the mean and standard deviation of the radius.
+
+	Parameters
+	---------------
+	mean: float
+		Mean (average) of radius.
+	std: float
+		Standard deviation of radius.
+	unit: string (optional)
+		Unit of the radius. Options are 'Earth' and 'Jupiter'.
+	sample_size: int (optional)
+		Number of radius samples to draw with the mean and std provided.
+	grid_size: int (optional)
+		Number of grid in the mass axis when sampling mass from radius.
+		The more the better results, but slower process.
+	Returns
+	---------------
+	mean: float
+		Predicted mean of mass in the input unit.
+	std: float
+		Predicted standard deviation of mass.
+	"""
 	# unit
 	if unit == 'Earth':
 		pass
@@ -178,10 +223,9 @@ def Rstat2M(mean, std, unit='Earth', sample_size=100, grid_size=1e3):
 		mean = mean * rearth2rjup
 		std = std * rearth2rjup
 	else:
-		print "Warning: input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
+		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	print 'Assuming normal distribution truncated from zero on.'
 	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)		
 	mass = Rpost2M(radius, 'Earth', grid_size)
 
@@ -192,4 +236,61 @@ def Rstat2M(mean, std, unit='Earth', sample_size=100, grid_size=1e3):
 		mass = mass / mearth2mjup
 
 		return np.mean(mass), np.std(mass)
+
+
+
+def RClass():
+	"""
+	Forecast the mean and standard deviation of mass given the mean and standard deviation of the radius.
+
+	Parameters
+	---------------
+	mean: float
+		Mean (average) of radius.
+	std: float
+		Standard deviation of radius.
+	unit: string (optional)
+		Unit of the radius. Options are 'Earth' and 'Jupiter'.
+	sample_size: int (optional)
+		Number of radius samples to draw with the mean and std provided.
+	grid_size: int (optional)
+		Number of grid in the mass axis when sampling mass from radius.
+		The more the better results, but slower process.
+	Returns
+	---------------
+	mean: float
+		Predicted mean of mass in the input unit.
+	std: float
+		Predicted standard deviation of mass.
+	"""
+	return prob
+
+
+
+def MClass():
+	"""
+	Forecast the mean and standard deviation of mass given the mean and standard deviation of the radius.
+
+	Parameters
+	---------------
+	mean: float
+		Mean (average) of radius.
+	std: float
+		Standard deviation of radius.
+	unit: string (optional)
+		Unit of the radius. Options are 'Earth' and 'Jupiter'.
+	sample_size: int (optional)
+		Number of radius samples to draw with the mean and std provided.
+	grid_size: int (optional)
+		Number of grid in the mass axis when sampling mass from radius.
+		The more the better results, but slower process.
+	Returns
+	---------------
+	mean: float
+		Predicted mean of mass in the input unit.
+	std: float
+		Predicted standard deviation of mass.
+	"""
+	return prob
+
 
