@@ -52,7 +52,7 @@ def ProbRGivenM(radii, M, hyper):
 ### classification
 def classification( logm, trans ):
 	count = np.zeros(4)
-	sample_size = len(mass)
+	sample_size = len(logm)
 
 	for iclass in range(4):
 		for isample in range(sample_size):

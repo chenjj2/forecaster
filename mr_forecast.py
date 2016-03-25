@@ -75,7 +75,7 @@ def Mpost2R(mass, unit='Earth', classify='No'):
 	hyper_ind = np.random.randint(low = 0, high = np.shape(all_hyper)[0], size = sample_size)	
 	hyper = all_hyper[hyper_ind,:]
 
-	if classify = 'Yes':
+	if classify == 'Yes':
 		classification(logm, hyper[:,-3:])
 		
 
@@ -195,7 +195,7 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3, classify = 'No'):
 
 	mass_sample = 10.** logm
 
-	if classify = 'Yes':
+	if classify == 'Yes':
 		classification(logm, hyper[:,-3:])
 
 	## convert to right unit
