@@ -23,11 +23,11 @@ all_hyper = h5['hyper_posterior'][:]
 h5.close()
 
 ## function
-from func import piece_linear, ProbRGivenM
+from func import piece_linear, ProbRGivenM, classification
 
 ##############################################
 
-def Mpost2R(mass, unit='Earth'):
+def Mpost2R(mass, unit='Earth', classify='No'):
 	"""
 	Forecast the Radius distribution given the mass distribution.
 
@@ -36,7 +36,12 @@ def Mpost2R(mass, unit='Earth'):
 	mass: one dimensional array
 		The mass distribution.
 	unit: string (optional)
-		Unit of the mass. Options are 'Earth' and 'Jupiter'.
+		Unit of the mass. 
+		Options are 'Earth' and 'Jupiter'. Default is 'Earth'.
+	classify: string (optional)
+		If you want the object to be classifed. 
+		Options are 'Yes' and 'No'. Default is 'No'.
+		Result will be printed, not returned.
 
 	Returns
 	---------------
@@ -69,6 +74,10 @@ def Mpost2R(mass, unit='Earth'):
 
 	hyper_ind = np.random.randint(low = 0, high = np.shape(all_hyper)[0], size = sample_size)	
 	hyper = all_hyper[hyper_ind,:]
+
+	if classify = 'Yes':
+		classification(logm, hyper[:,-3:])
+		
 
 	for i in range(sample_size):
 		logr[i] = piece_linear(hyper[i], logm[i], prob[i])
@@ -128,7 +137,7 @@ def Mstat2R(mean, std, unit='Earth', sample_size=1000):
 
 
 
-def Rpost2M(radius, unit='Earth', grid_size = 1e3):
+def Rpost2M(radius, unit='Earth', grid_size = 1e3, classify = 'No'):
 	"""
 	Forecast the mass distribution given the radius distribution.
 
@@ -141,6 +150,10 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3):
 	grid_size: int (optional)
 		Number of grid in the mass axis when sampling mass from radius.
 		The more the better results, but slower process.
+	classify: string (optional)
+		If you want the object to be classifed. 
+		Options are 'Yes' and 'No'. Default is 'No'.
+		Result will be printed, not returned.
 
 	Returns
 	---------------
@@ -181,6 +194,9 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3):
 		logm[i] = np.random.choice(logm_grid, size=1, p = prob)
 
 	mass_sample = 10.** logm
+
+	if classify = 'Yes':
+		classification(logm, hyper[:,-3:])
 
 	## convert to right unit
 	if unit == 'Jupiter':
@@ -238,59 +254,4 @@ def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3):
 		return np.mean(mass), np.std(mass)
 
 
-
-def RClass():
-	"""
-	Forecast the mean and standard deviation of mass given the mean and standard deviation of the radius.
-
-	Parameters
-	---------------
-	mean: float
-		Mean (average) of radius.
-	std: float
-		Standard deviation of radius.
-	unit: string (optional)
-		Unit of the radius. Options are 'Earth' and 'Jupiter'.
-	sample_size: int (optional)
-		Number of radius samples to draw with the mean and std provided.
-	grid_size: int (optional)
-		Number of grid in the mass axis when sampling mass from radius.
-		The more the better results, but slower process.
-	Returns
-	---------------
-	mean: float
-		Predicted mean of mass in the input unit.
-	std: float
-		Predicted standard deviation of mass.
-	"""
-	return prob
-
-
-
-def MClass():
-	"""
-	Forecast the mean and standard deviation of mass given the mean and standard deviation of the radius.
-
-	Parameters
-	---------------
-	mean: float
-		Mean (average) of radius.
-	std: float
-		Standard deviation of radius.
-	unit: string (optional)
-		Unit of the radius. Options are 'Earth' and 'Jupiter'.
-	sample_size: int (optional)
-		Number of radius samples to draw with the mean and std provided.
-	grid_size: int (optional)
-		Number of grid in the mass axis when sampling mass from radius.
-		The more the better results, but slower process.
-	Returns
-	---------------
-	mean: float
-		Predicted mean of mass in the input unit.
-	std: float
-		Predicted standard deviation of mass.
-	"""
-	return prob
-
-
+	
