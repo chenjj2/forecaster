@@ -251,7 +251,7 @@ def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3):
 	if unit=='Jupiter':
 		mass = mass / mearth2mjup
 
-		return np.mean(mass), np.std(mass)
+	return np.mean(mass), np.std(mass)
 
 
 	
