@@ -94,7 +94,7 @@ def Mpost2R(mass, unit='Earth', classify='No'):
 
 
 
-def Mstat2R(mean, std, unit='Earth', sample_size=1000):	
+def Mstat2R(mean, std, unit='Earth', sample_size=1000, classify = 'No'):	
 	"""
 	Forecast the mean and standard deviation of radius given the mena and standard deviation of the mass.
 	Assuming normal distribution with the mean and standard deviation truncated at the mass range limit of the model.
@@ -127,8 +127,11 @@ def Mstat2R(mean, std, unit='Earth', sample_size=1000):
 		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	mass = truncnorm.rvs( (mlower-mean)/std, (mupper-mean)/std, loc=mean, scale=std, size=sample_size)		
-	radius = Mpost2R(mass, unit='Earth')
+	mass = truncnorm.rvs( (mlower-mean)/std, (mupper-mean)/std, loc=mean, scale=std, size=sample_size)	
+	if classify == 'Yes':	
+		radius = Mpost2R(mass, unit='Earth', classify='Yes')
+	else:
+		radius = Mpost2R(mass, unit='Earth')
 
 	if unit == 'Jupiter':
 		radius = radius / rearth2rjup
@@ -208,7 +211,7 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3, classify = 'No'):
 
 
 
-def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3):	
+def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3, classify = 'No'):	
 	"""
 	Forecast the mean and standard deviation of mass given the mean and standard deviation of the radius.
 
@@ -242,8 +245,11 @@ def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3):
 		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)		
-	mass = Rpost2M(radius, 'Earth', grid_size)
+	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)	
+	if classify == 'Yes':
+		mass = Rpost2M(radius, 'Earth', grid_size, classify='Yes')
+	else:
+		mass = Rpost2M(radius, 'Earth', grid_size)
 
 	if mass is None:
 		return None
