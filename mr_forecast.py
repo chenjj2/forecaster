@@ -136,7 +136,12 @@ def Mstat2R(mean, std, unit='Earth', sample_size=1000, classify = 'No'):
 	if unit == 'Jupiter':
 		radius = radius / rearth2rjup
 
-	return np.mean(radius), np.std(radius)
+	r_med = np.median(radius)
+	onesigma = 34.1
+	r_up = np.percentile(radius, 50.+onesigma, interpolation='nearest')
+	r_down = np.percentile(radius, 50.-onesigma, interpolation='nearest')
+
+	return r_med, r_up - r_med, r_med - r_down
 
 
 
@@ -172,10 +177,13 @@ def Rpost2M(radius, unit='Earth', grid_size = 1e3, classify = 'No'):
 	else:
 		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
-	# mass range
-	if np.min(radius) <= 0.:
-		print 'There cannot be negative radius. Returning None.'
+
+	# radius range
+	if np.min(radius) < 1e-1 or np.max(radius) > 1e2:
+		print 'Radius range out of model expectation. Returning None.'
 		return None
+
+
 
 	# sample_grid
 	if grid_size < 10:
@@ -257,7 +265,12 @@ def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3, classify = 
 	if unit=='Jupiter':
 		mass = mass / mearth2mjup
 
-	return np.mean(mass), np.std(mass)
+	m_med = np.median(mass)
+	onesigma = 34.1
+	m_up = np.percentile(mass, 50.+onesigma, interpolation='nearest')
+	m_down = np.percentile(mass, 50.-onesigma, interpolation='nearest')
+
+	return m_med, m_up - m_med, m_med - m_down
 
 
 	
