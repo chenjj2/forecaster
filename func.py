@@ -4,14 +4,20 @@ from scipy.stats import norm, truncnorm
 ### fix the number of different populations
 n_pop = 4
 
-### indicate which M belongs to population i given transition parameter
+
 def indicate(M, trans, i):
+	'''
+	indicate which M belongs to population i given transition parameter
+	'''
 	ts = np.insert(np.insert(trans, n_pop-1, np.inf), 0, -np.inf)
 	ind = (M>=ts[i]) & (M<ts[i+1])
 	return ind
 
-### split hyper and derive c
+
 def split_hyper_linear(hyper):
+	'''
+	split hyper and derive c
+	'''
 	c0, slope,sigma, trans = \
 	hyper[0], hyper[1:1+n_pop], hyper[1+n_pop:1+2*n_pop], hyper[1+2*n_pop:]
 
@@ -22,8 +28,11 @@ def split_hyper_linear(hyper):
 
 	return c, slope, sigma, trans
 
-### model: straight line
+
 def piece_linear(hyper, M, prob_R):
+	'''
+	model: straight line
+	'''
 	c, slope, sigma, trans = split_hyper_linear(hyper)
 	R = np.zeros_like(M)
 	for i in range(4):
@@ -33,9 +42,11 @@ def piece_linear(hyper, M, prob_R):
 
 	return R
 
-### p(radii|M)
-def ProbRGivenM(radii, M, hyper):
 
+def ProbRGivenM(radii, M, hyper):
+	'''
+	p(radii|M)
+	'''
 	c, slope, sigma, trans = split_hyper_linear(hyper)
 	prob = np.zeros_like(M)
 	
@@ -49,8 +60,11 @@ def ProbRGivenM(radii, M, hyper):
 
 	return prob
 
-### classification
+
 def classification( logm, trans ):
+	'''
+	classify as four worlds
+	'''
 	count = np.zeros(4)
 	sample_size = len(logm)
 
