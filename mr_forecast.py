@@ -253,7 +253,7 @@ def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3, classify = 
 		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)	
+	radius = truncnorm.rvs( (0.1-mean)/std, (1e2-mean)/std, loc=mean, scale=std, size=sample_size)	
 	if classify == 'Yes':
 		mass = Rpost2M(radius, 'Earth', grid_size, classify='Yes')
 	else:
