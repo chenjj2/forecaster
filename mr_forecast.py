@@ -4,6 +4,7 @@ from __future__ import (print_function, absolute_import,
 import numpy as np
 from scipy.stats import truncnorm
 import h5py 
+import os
 
 ## constant
 mearth2mjup = 317.828
@@ -19,7 +20,7 @@ mupper = 3e5
 n_pop = 4
 
 ## read parameter file
-hyper_file = 'fitting_parameters.h5'
+hyper_file = os.path.join(os.path.dirname(__file__), 'fitting_parameters.h5')
 h5 = h5py.File(hyper_file, 'r')
 all_hyper = h5['hyper_posterior'][:]
 h5.close()
